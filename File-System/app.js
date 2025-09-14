@@ -1,27 +1,48 @@
 const fs = require("fs/promises");
+const path = require("node:path");
 const { Buffer } = require("node:buffer");
+const { createFile, deleteFile, renameFile, addToFile } = require('./fileOperations.js');
 
-(async () => {
+const startWatcher = async () => {
     //commands
     const CREATE_FILE = "create a file";
+    const DELETE_FILE = "delete the file";
+    const RENAME_FILE = "rename the file";
+    const ADD_TO_FILE = "add to the file";
 
     //First we need to open the file to handle it.
-    const fileHandler = await fs.open("./command.txt");
+    const fileHandler = await fs.open("./command.txt", "a+");
 
-    //Functions
-    const createFile = async (filePath) => {
-        try {
-            const newFile = await fs.open(filePath, "wx");
-            console.log(`Successfully created a new file at path ${filePath}`);
-            await newFile.close();
-        } catch(error) {
-            if (error.code === "EEXIST") {
-                console.error(`Error: The file ${filePath} already exists`);
+    const commandMap = {
+        [CREATE_FILE]: (command) => {
+            const filePath = command.substring(CREATE_FILE.length + 1);
+            createFile(filePath);
+        },
+        [DELETE_FILE]: (command) => {
+            const filePath = command.substring(DELETE_FILE.length + 1).trim();
+            deleteFile(filePath);
+        },
+        [RENAME_FILE]: (command) => {
+            const parts = command.split(" to ");
+            if (parts.length === 2) {
+                const oldPath = parts[0].substring(RENAME_FILE.length + 1).trim();
+                const newPath = parts[1].trim();
+                renameFile(oldPath , newPath);
             } else {
-                console.error(`Error creating file at ${filePath}:`, error.message);
+                console.error(`❌ Bad rename syntax. Use: rename the file <oldPath> to <newPath>`);
+            }
+        },
+        [ADD_TO_FILE]: (command) => {
+            const parts = command.split(" this content: ");
+            if (parts.length === 2) {
+                const filePath = parts[0].substring(ADD_TO_FILE.length + 1).trim();
+                const content = parts[1].trim();
+                addToFile(filePath , content);
+            } else {
+                console.error(`❌ Bad add to file syntax. Use: add to the file <filePath> this content: <content>`);
             }
         }
-    };
+    }
 
     //Assign change event.
     fileHandler.on("change" , async () => {
@@ -41,21 +62,29 @@ const { Buffer } = require("node:buffer");
         //Read the content.
         await fileHandler.read(buffer , offset , length, position);
         
-        const command = buffer.toString("utf-8");
-        
-        if (command.includes(CREATE_FILE)) {
-            const filePath = command.substring(CREATE_FILE.length + 1);
-            createFile(filePath);
-        }
+        const command = buffer.toString("utf-8").trim();
+        const commandPrefix = Object.keys(commandMap).find(prefix => command.startsWith(prefix));
 
+        if (commandPrefix) {
+            commandMap[commandPrefix](command);
+        } else {
+            console.error(`❌ Unknown command: ${command}`);
+        }
     });
 
     //Start watching happens we want to track.
     const watcher = await fs.watch("./command.txt");
     
     for await (const event of watcher) {
-        const eventType = event.eventType; // ["change" , "rename" , "delete" , ...]
-        fileHandler.emit(eventType);
+        fileHandler.emit(event.eventType);
     }
 
-})();
+}
+
+if (require.main === module) {
+    startWatcher();
+}
+
+module.exports = {
+    startWatcher
+}
