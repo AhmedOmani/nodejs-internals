@@ -71,7 +71,7 @@ async function main() {
     let i = 0;
 
     const flush = () => {
-        while (i < 10000000) {
+        while (i < 1000) {
             const buffer = Buffer.from(`${i}\n`);
             if (!stream.write(buffer)) return ;
             i++;
