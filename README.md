@@ -9,7 +9,7 @@ A demonstration of Node.js file system operations, including reading, writing, a
 - See `File-System/README.md` for details.
 
 ### Streams
-Explore Node.js Streams by implementing custom writable (and soon readable) streams. This section helps you understand how streams work internally and how to extend them.
+Explore Node.js Streams by implementing custom writable and readable streams. This section helps you understand how streams work internally and how to extend them.
 - See `Streams/README.md` for details.
 
 ## How to Use
