@@ -1,3 +1,6 @@
+const fs = require("node:fs");
+const fss = require("node:fs/promises");
+
 class OmixResponse {
     constructor(res) {
         this.rawRes = res;
@@ -10,7 +13,21 @@ class OmixResponse {
     }
 
     sendFile(filePath, contentType = "text/plain") {
+        const readStream = fs.createReadStream(filePath);
 
+        readStream.on("error" , (err) => {
+            console.error("File Read Error: " , err);
+            if (err.code == "ENOENT") {
+                this.rawRes.writeHead(404 , { "Content-Type" : "text/plain" });
+                this.rawRes.end("404 File Not Found");
+            } else {
+                this.rawRes.writeHead(500 , { "Content-Type" : "text/plain" });
+                this.rawRes.end("500 Internal Server Error");
+            }
+        });
+
+        this.rawRes.writeHead(this.statusCode , {"Content-Type" : contentType});
+        readStream.pipe(this.rawRes);
     }
 
     send(data) {

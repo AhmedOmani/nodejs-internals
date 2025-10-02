@@ -2,28 +2,18 @@ const http = require("node:http");
 const { URL } = require('node:url');
 const { OmixResponse } = require("./Omix-Response");
 const { OmixRequest } = require("./Omix-Request");
+const { OmixRouter } = require("./Omix-Router");
 
 class Omix {
 
     constructor() {
         this.dispatcher = this.dispatcher.bind(this);
         this.server = http.createServer(this.dispatcher);
-        this.routes = {
-            GET: [],
-            POST: [],
-            PUT: [],
-            PATCH: [],
-            DELETE: [],
-            OPTIONS: []
-        };
+        this.router = new OmixRouter();
     }
 
     route(method , path , handler)  {
-        const upperMethod = method.toUpperCase();
-        if (this.routes[upperMethod]) 
-            this.routes[upperMethod].push({path , handler});
-        else
-            console.warn(`Method ${upperMethod} is not from HTTP spec.`);
+        this.router.addRoute(method, path , handler);
     }
 
     get(path , handler) {
@@ -50,24 +40,20 @@ class Omix {
         const url = new URL(req.url , `http://${req.headers.host}`);
         const path = url.pathname;
 
-        const routeList = this.routes[method];
+        const match = this.router.matchRoute(method , path);
 
-        let matchRoute = null;
-        for (const route of routeList) {
-            if (path === route.path) {
-                matchRoute = route ;
-                break;
-            }
-        }
-
-        if (matchRoute) {
-            const omixResponse = new OmixResponse(res);
-            const omixRequest = new OmixRequest(req);
-            matchRoute.handler(omixRequest , omixResponse);
-        } else {
+        if (!match) {
             res.writeHead(404 ,  {"Content-Type" : "text/plain"});
             res.end("404 Not Found");
+            return;
         }
+
+        //Run the handler function assigned to that route.
+        const omixRequest = new OmixRequest(req , match.params , url.searchParams);
+        const omixResponse = new OmixResponse(res);
+
+        //Run the 
+        match.handler(omixRequest , omixResponse);
     }
 
     listen = (port , cb) => {
