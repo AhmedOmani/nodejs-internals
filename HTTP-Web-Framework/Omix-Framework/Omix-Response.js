@@ -35,6 +35,15 @@ class OmixResponse {
         this.rawRes.end(data);
         return this;
     }
+
+    json(data) {
+        this.rawRes.writeHead(this.statusCode , {"Content-Type" : "application/json"});
+        this.rawRes.end(JSON.stringify(data));
+    }
+
+    end(data) {
+        this.rawRes.end(data);
+    }
 }
 
 module.exports = { OmixResponse };

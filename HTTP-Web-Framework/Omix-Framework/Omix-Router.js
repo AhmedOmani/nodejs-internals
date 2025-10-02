@@ -18,7 +18,6 @@ class OmixRouter {
         // eg. users/:id/posts
         // segments = ['users' , ':id' , 'posts']
         const segments = path.split("/").filter(s => s.length > 0);
-        console.log("Segments: " , segments);
         let currentNode = this.root ;
         const upperMethod = method.toUpperCase();
 
@@ -29,10 +28,7 @@ class OmixRouter {
         //NOTE: Each level is allow for just one dynamic parameter for ambiguty purposes.
 
         for (const segment of segments) {
-            console.log("segemment: " , segment);
-            console.log("Before:: " , currentNode);
             let nextNode = currentNode.children[segment];
-            console.log("Next Node: " , nextNode);
             if (!nextNode) {
                 if (segment.startsWith(":")) {
                     let existingParamNode = Object.values(currentNode.children).find(node => node.isParam);
@@ -50,7 +46,6 @@ class OmixRouter {
                 }
             }
             currentNode = nextNode;
-            console.log("finish: " , currentNode);
         }
 
         currentNode.handler[upperMethod] = handler; 
