@@ -29,7 +29,7 @@ const startWatcher = async () => {
                 const newPath = parts[1].trim();
                 renameFile(oldPath , newPath);
             } else {
-                console.error(`❌ Bad rename syntax. Use: rename the file <oldPath> to <newPath>`);
+                console.error(` Bad rename syntax. Use: rename the file <oldPath> to <newPath>`);
             }
         },
         [ADD_TO_FILE]: (command) => {
@@ -39,7 +39,7 @@ const startWatcher = async () => {
                 const content = parts[1].trim();
                 addToFile(filePath , content);
             } else {
-                console.error(`❌ Bad add to file syntax. Use: add to the file <filePath> this content: <content>`);
+                console.error(` Bad add to file syntax. Use: add to the file <filePath> this content: <content>`);
             }
         }
     }
