@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 require("dotenv").config();
 
-// Use environment variables if provided; otherwise fallback to local defaults
+
 const pool = new Pool({
     host: process.env.PGHOST ,
     port: process.env.PGPORT ,
