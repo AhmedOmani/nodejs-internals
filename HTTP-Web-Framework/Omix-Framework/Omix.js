@@ -10,29 +10,40 @@ class Omix {
         this.dispatcher = this.dispatcher.bind(this);
         this.server = http.createServer(this.dispatcher);
         this.router = new OmixRouter();
+        this.globalMiddleware = [];
     }
 
-    route(method , path , handler)  {
-        this.router.addRoute(method, path , handler);
+    use(handler) {
+        if (typeof handler === "function") {
+            this.globalMiddleware.push(handler);
+        } else {
+            console.log("Omix.use() excepts a function");
+        }
     }
 
-    get(path , handler) {
-        this.route("GET" , path , handler);
+    route(method , path , ...handlers)  {
+        const finalHandler = handlers.pop();
+        const middleware = handlers;
+        this.router.addRoute(method, path , finalHandler, middleware);
     }
-    post(path , handler) {
-        this.route("POST" , path , handler);
+
+    get(path , ...handler) {
+        this.route("GET" , path , ...handler);
+    }
+    post(path , ...handler) {
+        this.route("POST" , path , ...handler);
     } 
-    put(path , handler) {
-        this.route("PUT" , path , handler);
+    put(path , ...handler) {
+        this.route("PUT" , path , ...handler);
     } 
-    patch(path , handler) {
-        this.route("PATCH" , path , handler);
+    patch(path , ...handler) {
+        this.route("PATCH" , path , ...handler);
     } 
-    delete(path , handler) {
-        this.route("DELETE" , path , handler);
+    delete(path , ...handler) {
+        this.route("DELETE" , path , ...handler);
     } 
-    options(path , handler) {
-        this.route("OPTIONS" , path , handler);
+    options(path , ...handler) {
+        this.route("OPTIONS" , path , ...handler);
     } 
 
     dispatcher(req , res) {
@@ -52,11 +63,39 @@ class Omix {
         const omixRequest = new OmixRequest(req , match.params , url.searchParams);
         const omixResponse = new OmixResponse(res);
 
-        //Run the 
-        match.handler(omixRequest , omixResponse);
+        const allHandlers = [
+            ...this.globalMiddleware,
+            ...match.middleware, //Route specific middleware
+            match.handler
+        ];
+        //Run the chaining of middlewares and the handler
+        this.excuteMiddlewareChain(allHandlers , omixRequest, omixResponse);
     }
 
+    excuteMiddlewareChain(handlers , req , res) {
+        let index = 0;
+        const next = (err) => {
+            if (err) {
+                if (!res.rawRes.headersSent) {
+                    res.status(500).send(`Internal Server Error: ${err.message}`);
+                    return;
+                }
+            }
+
+            const handler = handlers[index++];
+            if (!handler) return ;
+
+            try {
+                handler(req, res , next);
+            } catch(err) {
+                next(err);
+            }
+        }
+        next();
+    };
+
     listen = (port , cb) => {
+        console.log(this.router.printRoutes());
         this.server.listen(port , () => cb());
     }
 }

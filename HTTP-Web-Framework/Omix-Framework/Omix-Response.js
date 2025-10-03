@@ -12,6 +12,11 @@ class OmixResponse {
         return this;
     }
 
+    setHeader(header , value) {
+        this.rawRes.setHeader(header , value);
+        return this;
+    }
+
     sendFile(filePath, contentType = "text/plain") {
         const readStream = fs.createReadStream(filePath);
 
@@ -38,7 +43,9 @@ class OmixResponse {
 
     json(data) {
         this.rawRes.writeHead(this.statusCode , {"Content-Type" : "application/json"});
-        this.rawRes.end(JSON.stringify(data));
+        this.rawRes.write(JSON.stringify(data));
+        this.end();
+        return this
     }
 
     end(data) {

@@ -3,7 +3,7 @@ class TrieNode {
     constructor(segment = "/") {
         this.segment = segment ;
         this.children = {};
-        this.handler = {};
+        this.handlers = {};
         this.isParam = false ;
         this.paramName = null;
     }
@@ -14,7 +14,7 @@ class OmixRouter {
         this.root = new TrieNode();
     }
 
-    addRoute(method , path , handler) {
+    addRoute(method , path , handler, middleware = []) {
         // eg. users/:id/posts
         // segments = ['users' , ':id' , 'posts']
         const segments = path.split("/").filter(s => s.length > 0);
@@ -48,7 +48,10 @@ class OmixRouter {
             currentNode = nextNode;
         }
 
-        currentNode.handler[upperMethod] = handler; 
+        currentNode.handlers[upperMethod] = {
+            handler: handler,
+            middleware: middleware
+        }; 
     };
 
     matchRoute(method , path) {
@@ -76,12 +79,60 @@ class OmixRouter {
             return null;
         }  
         
-        const handler = currentNode.handler[upperMethod];
+        const routeData = currentNode.handlers[upperMethod];
 
-        if (handler) return {handler , params};
-
+        if (routeData) {
+            return {
+                handler: routeData.handler,
+                params,
+                middleware: routeData.middleware
+            }
+        }
         return null;
     };
+
+    printRoutes() {
+        const routes = [];
+        console.log("\n--- Omix Defined Routes ---");
+        
+        this._traverseTrie(this.root, "", routes);
+
+        routes.sort((a, b) => {
+            if (a.method < b.method) return -1;
+            if (a.method > b.method) return 1;
+            if (a.path < b.path) return -1;
+            if (a.path > b.path) return 1;
+            return 0;
+        });
+
+        routes.forEach(route => {
+            const handlersCount = 1 + route.middlewareCount;
+            const handlerText = handlersCount === 1 ? 'handler' : 'handlers';
+            console.log(`[${route.method.padEnd(6)}] ${route.path.padEnd(30)} (${handlersCount} ${handlerText})`);
+        });
+        console.log("---------------------------\n");
+    };
+
+
+    _traverseTrie(node, currentPath, routes) {
+
+        if (Object.keys(node.handlers).length > 0) {
+            for (const method in node.handlers) {
+                const routeData = node.handlers[method];
+                routes.push({
+                    method: method,
+                    path: currentPath || '/', 
+                    middlewareCount: routeData.middleware.length
+                });
+            }
+        }
+
+        for (const segment in node.children) {
+            const childNode = node.children[segment];
+            const nextPath = (currentPath ? currentPath : "") + "/" + childNode.segment;
+            this._traverseTrie(childNode, nextPath, routes);
+        }
+    }
 }
 
 module.exports = {

@@ -1,6 +1,10 @@
 class OmixRequest {
-    constructor(req) {
+    constructor(req, params , searchUrls) {
         this.rawReq = req ;
+    }
+
+    headers() {
+        return this.rawReq.headers ;
     }
 
     body() {
