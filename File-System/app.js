@@ -68,7 +68,7 @@ const startWatcher = async () => {
         if (commandPrefix) {
             commandMap[commandPrefix](command);
         } else {
-            console.error(`❌ Unknown command: ${command}`);
+            console.error(` Unknown command: ${command}`);
         }
     });
 
