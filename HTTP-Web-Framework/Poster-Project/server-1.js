@@ -1,36 +1,22 @@
 const { Omix } = require("../Omix-Framework/Omix");
 const { pool, ensureSessionsTable, ensureUsersAndPostsTables } = require("./db");
 const { authenticate } = require("./middleware/auth-middleware");
+const { static } = require("./middleware/static-middleware");
+const { globalLogger } = require("./middleware/global-logger-middleware");
+
+require("dotenv").config();
+const PORT = process.env.FIRST_PORT;
 
 // Data now comes from Postgres
 
 const omix = new Omix();
 
 //GLOBAL middleware
-const globalLogger = (req , res , next) => {
-    console.log(`[GLOBAL] ${req.rawReq.method} to ${req.rawReq.url}`);
-    next();
-};
-omix.use(globalLogger);
 
-//Public-Static files
-omix.get("/" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/login" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/profile" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/styles.css" , (req , res) => {
-    res.status(200).sendFile("./public/styles.css" , "text/css");
-});
-omix.get("/scripts.js" , (req , res) => {
-    res.status(200).sendFile("./public/scripts.js" , "text/javascript");
-});
+omix.use(globalLogger); //GLOBAL LOGGING
+omix.use(static("./public")); //Serving Public-Static files MIDDLEWARE
 
-//APIs 
+//CRUD APIs SECTION 
 
 //-------- AUTH APIs ---------
 
@@ -138,8 +124,8 @@ omix.put("/api/user" , authenticate , async (req , res) => {
 
 });
 
-omix.listen(7001 , async () => {
+omix.listen(PORT , async () => {
     await ensureSessionsTable();
     await ensureUsersAndPostsTables();
-    console.log("Omix Server 1 is UP!");
+    console.log(`Omix Server 1 is UP on port ${PORT}!`);
 });

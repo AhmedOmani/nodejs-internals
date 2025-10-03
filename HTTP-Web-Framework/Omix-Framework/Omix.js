@@ -50,25 +50,39 @@ class Omix {
         const method = req.method;
         const url = new URL(req.url , `http://${req.headers.host}`);
         const path = url.pathname;
+        //FIRST OF FIRST : 
+        // excute the global middlewares escpecially the static-file serving middleware, 
+        // because these files dont have their specific routes.
 
-        const match = this.router.matchRoute(method , path);
-
-        if (!match) {
-            res.writeHead(404 ,  {"Content-Type" : "text/plain"});
-            res.end("404 Not Found");
-            return;
-        }
-
-        //Run the handler function assigned to that route.
-        const omixRequest = new OmixRequest(req , match.params , url.searchParams);
+        const omixRequest = new OmixRequest(req , {} , url.searchParams);
         const omixResponse = new OmixResponse(res);
 
+        //these routerFallback function runs after all the global middlewares to match the request to its specific routes.
+        const routerFallback = (req , res , next) => {
+
+            const match = this.router.matchRoute(method , path);
+            if (!match) {
+                omixResponse.status(404).send("404 Not Found");
+                return;
+            }
+
+            omixResponse.params = match.params;
+
+            const routeHandlers = [
+                ...match.middleware,
+                match.handler
+            ];
+
+            this.excuteMiddlewareChain(routeHandlers , omixRequest , omixResponse);
+        };
+
+        //start handling global middles wares then move to the request.
         const allHandlers = [
             ...this.globalMiddleware,
-            ...match.middleware, //Route specific middleware
-            match.handler
+            routerFallback
         ];
-        //Run the chaining of middlewares and the handler
+
+        //Run the chaining of globalmiddlewares (serving the static files) first then excute the main request 
         this.excuteMiddlewareChain(allHandlers , omixRequest, omixResponse);
     }
 

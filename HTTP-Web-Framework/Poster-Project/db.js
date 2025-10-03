@@ -1,12 +1,13 @@
 const { Pool } = require('pg');
+require("dotenv").config();
 
 // Use environment variables if provided; otherwise fallback to local defaults
 const pool = new Pool({
-    host: process.env.PGHOST || 'localhost',
-    port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || '12345ahmedsaber',
-    database: process.env.PGDATABASE || 'omix_demo'
+    host: process.env.PGHOST ,
+    port: process.env.PGPORT ,
+    user: process.env.PGUSER ,
+    password: process.env.PGPASSWORD ,
+    database: process.env.PGDATABASE 
 });
 
 async function ensureSessionsTable() {

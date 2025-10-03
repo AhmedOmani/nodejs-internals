@@ -1,39 +1,129 @@
 const { Omix } = require("../Omix-Framework/Omix");
 const { pool, ensureSessionsTable, ensureUsersAndPostsTables } = require("./db");
+const { authenticate } = require("./middleware/auth-middleware");
+const { static } = require("./middleware/static-middleware");
+const { globalLogger } = require("./middleware/global-logger-middleware");
 
-// Data now comes from Postgres
+const PORT = process.env.SECOND_PORT;
 
 const omix = new Omix();
 
-//Public-Static files
-omix.get("/" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/login" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/profile" , (req , res) => {
-    res.status(200).sendFile("./public/index.html" , "text/html");
-});
-omix.get("/styles.css" , (req , res) => {
-    res.status(200).sendFile("./public/styles.css" , "text/css");
-});
-omix.get("/scripts.js" , (req , res) => {
-    res.status(200).sendFile("./public/scripts.js" , "text/javascript");
-});
+omix.use(globalLogger); //GLOBAL LOGGING
+omix.use(static("./public")); //Serving Public-Static files MIDDLEWARE
 
 //APIs 
 
+//-------- AUTH APIs ---------
 
-//update user profile
+//user authentication login
+omix.post("/api/login" , async (req , res) => {
+    console.log("Server 2 receive this request: /api/login");
 
+    const data = await req.body();
+    //Check if user exist or not
+    const { rows } = await pool.query("SELECT id FROM users WHERE username = $1 AND password = $2", [data.username, data.password]);
+    const user = rows[0];
+    if (!user) {
+        return res.status(401).json({
+            error: "Username or Password is incorrect"
+        });
+    }
 
-//LOGOUT
-omix.delete("/api/logout" , async (req , res) => {
+    //if user exist we start authentication flow
+    const token = Math.floor(Math.random() * 10000000000).toString();
+    await pool.query("INSERT INTO sessions(token, user_id) VALUES($1, $2) ON CONFLICT (token) DO NOTHING", [token, user.id]);
+    
+    res.setHeader("Set-Cookie" , `token=${token}; Path=/;`)
+        .status(200)
+        .json({
+            message: "User logged in successfully"
+        });
+});
+//user logout
+omix.delete("/api/logout", authenticate , async (req , res) => {
+    console.log("Server 2 receive this request: /api/login")
+    const userId = req.user.id;
+    const token = req.token;
+    try {
+        await pool.query("DELETE FROM sessions WHERE user_id = $1 AND token = $2", [userId, token]);
+        res.status(200).json({ message: "Logged put successfully"});
+    } catch(err) {
+        console.error("Error during logout:", err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+//-------- POSTS APIs --------
+
+//send list of all posts
+omix.get("/api/posts", authenticate , async (req , res) => {
+    console.log("Server 2 receive this request: /api/posts");
+    const { rows } = await pool.query(
+        `SELECT p.id, p.title, p.body, p.user_id, u.name AS author
+         FROM posts p
+         JOIN users u ON u.id = p.user_id`
+    );
+    res.status(200).json(rows.map(r => ({ id: r.id, title: r.title, body: r.body, userId: r.user_id, author: r.author })));
+});
+//create new post
+omix.post("/api/posts" , authenticate , async (req , res) => {
+    console.log("Server 2 receive this request: /api/login");
+
+    const data = await req.body();
+
+    //grab required data to save into db.
+    const {title , body} = data;
+    const userId = req.user.id;
+    
+    //save the post to the database
+    await pool.query("INSERT INTO posts(title , body , user_id) VALUES($1 , $2 , $3)" , [title , body , userId]);
+
+    res.status(201).json({
+        message: "Post has created successfully."
+    });
 
 });
-omix.listen(7002 , async () => {
+
+//------- USER APIs --------
+//get user 
+omix.get("/api/user" , authenticate , async (req , res) => {
+    console.log("Server 2 receive this request: GET /api/user");
+    const user = req.user;
+    res.status(200).json({ id: user.id, username: user.username , name: user.name,  });
+});
+//update user profile
+omix.put("/api/user" , authenticate , async (req , res) => {
+    console.log("Server 2 receive this request: PUT /api/user");
+    const data = await req.body();
+    const {name , username , password} = data;
+    const userId = req.user.id;
+
+    if (!name || !username || !password) {
+        return res.status(404).json({
+            message: "You have to send all required data"
+        });
+    }
+
+    const { rows } = await pool.query(`UPDATE users SET name = COALESCE($1 , name) , username = COALESCE($2, username),password = COALESCE($3, password) WHERE id = $4 RETURNING *;`, [name , username , password , userId]);
+    //Not logical case because i already have an id for the current user session , but just for proper handling.
+    if (rows.length === 0) {
+        return res.status(404).json({
+            message: "User not found"
+        })
+    }
+
+    res.status(200).json({
+        message: "User profile updated successfully",
+        data: {
+            name: rows.name,
+            username: rows.username,
+        }
+    });
+
+});
+
+omix.listen(PORT , async () => {
     await ensureSessionsTable();
     await ensureUsersAndPostsTables();
-    console.log("Omix Server 2 is UP!");
+    console.log(`Omix Server 2 is UP on port ${PORT}!`);
 });

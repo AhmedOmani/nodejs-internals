@@ -1,10 +1,11 @@
 const http = require("node:http");
+require("dotenv").config();
 
-const PORT = 7000;
+const PORT = process.env.PORT;
 
 const Servers = [
-    {host: "localhost" , port: 7001}
-    //{host: "localhost" , port: 7002}
+    {host: "localhost" , port: process.env.FIRST_PORT},
+    {host: "localhost" , port: process.env.SECOND_PORT}
 ];
 
 const proxyServer = http.createServer();
@@ -36,5 +37,5 @@ proxyServer.on("request" , (clientRequest , proxyResponse) => {
 });
 
 proxyServer.listen(PORT , () => {
-    console.log("Load Balancer is up!");
+    console.log(`Load Balancer is up on port ${PORT}!`);
 });
